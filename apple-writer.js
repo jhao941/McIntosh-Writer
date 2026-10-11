@@ -14,6 +14,7 @@
 //     （和 SF-Hello 原稿对比过，比让曲线自然收在端点附近更贴）
 //   · 字母之间：前一个字母"接出去"那笔的最后 3 个控制点和后一个字母"接进来"那笔的前 3 个控制点，
 //     换成 3 个新点（Apple 的做法），两边各自的曲线保持不动。新点按位置渐变混合估算（权重见 JOIN_W）
+//     穿过的 o（apple-extras.js）后面例外：不混合，跳过后一个字母进笔开头的几个点、补 0–2 个点接上（见 joinCrossed）
 //   · 字母内部两笔之间：
 //       端点几乎重合（m、n 的进笔升到顶、竖笔从同一点往下）→ 尖角
 //       前一笔标了 tangency（a c d g q 的进笔 → 圆、t 的上升 → 竖）→ 贴到后一笔上，倒着走回它的起点，折返再写
@@ -163,6 +164,63 @@
     path.joins = joins.map(({ src, ...j }) => j);
   }
 
+  // ---------- 穿过的 o → 下一个字母 ----------
+  // 通用的 6→3 混合要求两边的尾巴大致是同一条路（前一个字母的出笔和后一个字母的进笔重叠）。穿过的 o 从右下往右上出笔，
+  // highEntry 的进笔从高处往下沉，两条尾巴交叉，混出来的控制多边形先左转、再右转、再左转，曲线就是 S 形。
+  // 这里不混合：o 的控制点写到斜穿的终点为止，直接接到后一个字母进笔里"方向已经转过来"的那个点上，中间补 0–2 个点。
+  //   · 可以接的点 B[s]：控制多边形 A[n−2] → A[n−1] → B[s] → B[s+1] 两处都左转，且 B[s] → B[s+1] 的方向不低于到达方向
+  //     （均匀 B 样条的曲线拐点不会比控制多边形多，多边形一路左转，曲线就没有 S 弯）
+  //   · 桥接点：最小化控制多边形的三阶差分平方和 Σ|Δ³P|²（曲率变化最平缓），一个点时是
+  //     X = [15(A0 + B0) − 6(A1 + B1) + (A2 + B2)] / 20（A0 是 o 的最后一个点，B0 = B[s]）
+  //   · 在第一个可以接的点和后一个点、桥接 0–2 个点这几种接法里，挑接口附近曲线曲率变化最单调的
+  // 坐标是 y 朝下（左转 = 叉积为负）
+  const crs = (u, v) => u[0] * v[1] - u[1] * v[0];
+  const angle = (v) => Math.atan2(-v[1], v[0]);
+  function fair(A, B, m) {
+    // A 的最后 3 个点、m 个未知点、B 的前 3 个点；对含未知点的每个 4 点窗口，Δ³ = p3 − 3p2 + 3p1 − p0
+    const P = [...A.slice(-3), ...Array(m).fill(null), ...B.slice(0, 3)], D3 = [-1, 3, -3, 1];
+    return [0, 1].map((ax) => {
+      const N = Array.from({ length: m }, () => Array(m).fill(0)), r = Array(m).fill(0);
+      for (let j = 0; j + 3 < P.length; j++) {
+        const a = Array(m).fill(0);
+        let c = 0;
+        D3.forEach((d, t) => { const q = P[j + t]; if (q) c += d * q[ax]; else a[j + t - 3] += d; });
+        for (let u = 0; u < m; u++) { r[u] -= a[u] * c; for (let v = 0; v < m; v++) N[u][v] += a[u] * a[v]; }
+      }
+      if (m === 1) return [r[0] / N[0][0]];
+      if (m === 2) { const det = N[0][0] * N[1][1] - N[0][1] * N[1][0]; return [(r[0] * N[1][1] - N[0][1] * r[1]) / det, (N[0][0] * r[1] - N[1][0] * r[0]) / det]; }
+      return [];
+    }).reduce((xs, ys) => xs.map((x, i) => [x, ys[i]]));
+  }
+  // 一串控制点画成的 B 样条：曲率全变差 − 首尾差（曲率单调时为 0），有右转时记下最大的反向曲率
+  function bumpOf(P) {
+    const ks = [];
+    for (let i = 0; i + 3 < P.length; i++) for (let k = 0; k < 16; k++) {
+      const t = k / 16, w1 = [-((1 - t) ** 2) / 2, (3 * t * t - 4 * t) / 2, (-3 * t * t + 2 * t + 1) / 2, t * t / 2], w2 = [1 - t, 3 * t - 2, 1 - 3 * t, t];
+      const d1 = [0, 1].map((j) => w1.reduce((s, w, q) => s + w * P[i + q][j], 0)), d2 = [0, 1].map((j) => w2.reduce((s, w, q) => s + w * P[i + q][j], 0));
+      ks.push(-crs(d1, d2) / Math.hypot(d1[0], d1[1]) ** 3);
+    }
+    let tv = 0, neg = 0;
+    ks.forEach((k, i) => { if (i) tv += Math.abs(k - ks[i - 1]); neg = Math.max(neg, -k); });
+    return { bump: tv - Math.abs(ks[ks.length - 1] - ks[0]), neg };
+  }
+  function joinCrossed(A, B) {
+    const n = A.length, a0 = A[n - 1], e0 = sub(a0, A[n - 2]), arrive = angle(e0);
+    let first = -1, best = null;
+    for (let s = 0; s + 1 < B.length && (first < 0 || s <= first + 1); s++) {
+      const e1 = sub(B[s], a0), e2 = sub(B[s + 1], B[s]);
+      if (B[s][0] < a0[0] + 40 || crs(e0, e1) > 0 || crs(e1, e2) > 0 || angle(e2) < arrive) continue;
+      if (first < 0) first = s;
+      for (let m = 0; m <= 2; m++) {
+        const mid = fair(A, B.slice(s), m);
+        const r = bumpOf([...A.slice(-4), ...mid, ...B.slice(s, s + 4)]);
+        const v = r.bump + (r.neg > 1e-5 ? 1 : 0);
+        if (!best || v < best.v) best = { v, skip: s, mid };
+      }
+    }
+    return best;
+  }
+
   function create(data) {
     const G = data.glyphs;
 
@@ -205,6 +263,14 @@
       function joinLetters(S, info) {
         const R = run();
         const n = R.pts.length;
+        if (G[info.from] && G[info.from].cross && n >= 4) {
+          const c = joinCrossed(R.pts, S.pts);
+          if (c) {
+            R.pts.push(...c.mid, ...S.pts.slice(c.skip));
+            (R.joins ||= []).push({ from: n - 1, to: n + c.mid.length, info });
+            return;
+          }
+        }
         // 前一笔只有 3 个点（默认 p、s.highEntry 抬笔后另起的那一小笔出笔）也照样换：3 个点全部换成新点
         if (n < 3 || S.pts.length < 3) {
           R.pts.push(...S.pts);

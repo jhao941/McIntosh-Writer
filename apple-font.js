@@ -109,7 +109,9 @@
         while (j < out.length && out[j].mark) j++;
         const next = j < out.length && glyphs[out[j].glyph];
         if (!next || !next.strokes.some((s) => s.type === "Open")) continue;
-        const delta = glyphs[target].advance - glyphs[out[i].glyph].advance;
+        // 穿过的 o 后面个别字母再挪（data.crossKern，按后一个字母的基本字形名）
+        const kern = table === data.crossed ? (data.crossKern || {})[out[j].glyph.split(".")[0]] || 0 : 0;
+        const delta = glyphs[target].advance - glyphs[out[i].glyph].advance + kern;
         out[i].glyph = target;
         out[i].advance += delta;
         for (let k = j; k < out.length; k++) out[k].x += delta; // 自己的重音不动

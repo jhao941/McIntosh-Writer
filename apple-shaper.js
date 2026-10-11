@@ -199,8 +199,8 @@
     }
 
     // 排字以后再换写法（对照表由 apple-extras.js 补上），只换后面还接着字母的（词尾、空格前不换）：
-    //   oCross：o 从中间穿过去（glyphs.crossed → o.crossed…）。穿过的 o 横扫出来，接 highEntry 的往右上扬、
-    //     接 midEntry（e、t）的保持平，后一个字母照样用原来的进笔（Apple 的 hola 里 l 也是从中间高度接进去的）
+    //   oCross：o 从中间穿过去（glyphs.crossed → o.crossed…）。穿过的 o 斜穿到右下就停，后一个字母照样用原来的写法，
+    //     由 apple-writer.js 的 joinCrossed 接上；字宽比原来的 o 窄（o 的笔画短了），个别字母再按 glyphs.crossKern 挪
     //   pJoin：p 一笔写完（glyphs.connected → 字体自带的 p.connected…）。字体默认的 p 写完圆抬笔，出笔另起一笔；
     //     p.connected 写到底再沿竖笔回上去绕圆、接着出笔，但字体的规则从来不选它（规则里也不认它，先换的话前后字母会选错写法）
     // 在定位（字距、重音位置）之后再换：新字形不在字体的重音定位表里，先换的话重音会掉到后一个字母上。
@@ -213,7 +213,9 @@
         while (j < out.length && isMark(out[j].glyph)) j++;
         const nextGlyph = j < out.length && glyphs.glyphs[out[j].glyph];
         if (!nextGlyph || !nextGlyph.strokes.some((s) => s.type === "Open")) continue;
-        const delta = glyphs.glyphs[target].advance - advanceOf(out[i].glyph);
+        // 穿过的 o 后面个别字母再挪（glyphs.crossKern，按后一个字母的基本字形名）
+        const kern = table === glyphs.crossed ? (glyphs.crossKern || {})[out[j].glyph.split(".")[0]] || 0 : 0;
+        const delta = glyphs.glyphs[target].advance - advanceOf(out[i].glyph) + kern;
         out[i].glyph = target;
         out[i].advance += delta;
         for (let k = j; k < out.length; k++) out[k].x += delta;
