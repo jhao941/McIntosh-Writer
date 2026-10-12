@@ -99,7 +99,7 @@
       return out.map(({ mark, ...g }) => g);
     }
 
-    // 排字以后再换写法：o 从中间穿过去（data.crossed）、p 一笔写完（data.connected），对照表由 apple-extras.js 补上。
+    // 排字以后再换写法：o 从中间穿过去（data.crossed）、p 和 s 一笔写完（data.connected），对照表由 apple-extras.js 补上。
     // 和 apple-shaper.js 的 swapForms 一样：词尾、空格前不换，换了以后按新字宽把后面的字形往后挪
     function swapForms(out, table) {
       for (let i = 0; i < out.length; i++) {

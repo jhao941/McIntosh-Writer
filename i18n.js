@@ -27,9 +27,9 @@
       "label.ocross": "o 的连笔",
       "ocross.over": "越过顶部",
       "ocross.through": "穿过中间",
-      "label.pjoin": "p 的写法",
+      "label.pjoin": "p 和 s 的写法",
       "pjoin.one": "一笔写完",
-      "pjoin.lift": "写完圆后抬笔",
+      "pjoin.lift": "中途抬笔",
       "label.font": "字体",
       "btn.chooseFont": "选取字体…",
 
@@ -89,9 +89,9 @@
       "label.ocross": "Joins After o",
       "ocross.over": "Over the Top",
       "ocross.through": "Through the Middle",
-      "label.pjoin": "Letter p",
+      "label.pjoin": "Letters p and s",
       "pjoin.one": "One Stroke",
-      "pjoin.lift": "Lift Pen After Bowl",
+      "pjoin.lift": "Lift Pen Partway",
       "label.font": "Font",
       "btn.chooseFont": "Choose Font…",
 

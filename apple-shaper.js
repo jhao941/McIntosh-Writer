@@ -9,7 +9,7 @@
 //     字体里有些写法（q.crossed / noLoop / lowLoop、f.noLoop / continuous、t.tall、p.connected、s.connected、w.short）
 //     没有规则会主动选，只在规则里派生出词首、词尾、highEntry 等形式；先换掉基本字形，后面的规则照常跑
 //   shaper.shape("wood", { oCross: true })  o 从中间穿过去（需要先 appleExtras.extend(glyphs)）
-//   shaper.shape("happy", { pJoin: true })  p 一笔写完（同上）
+//   shaper.shape("happy", { pJoin: true })  p 和 s 一笔写完（同上）
 (function (root) {
   const IGNORE_MARKS = 8;
   const GSUB_FEATURES = new Set(["ccmp", "locl", "calt"]); // harfbuzz 默认打开的；ctrl 不是标准特性，默认不开
@@ -201,8 +201,9 @@
     // 排字以后再换写法（对照表由 apple-extras.js 补上），只换后面还接着字母的（词尾、空格前不换）：
     //   oCross：o 从中间穿过去（glyphs.crossed → o.crossed…）。穿过的 o 斜穿到右下就停，后一个字母照样用原来的写法，
     //     由 apple-writer.js 的 joinCrossed 接上；字宽比原来的 o 窄（o 的笔画短了），个别字母再按 glyphs.crossKern 挪
-    //   pJoin：p 一笔写完（glyphs.connected → 字体自带的 p.connected…）。字体默认的 p 写完圆抬笔，出笔另起一笔；
-    //     p.connected 写到底再沿竖笔回上去绕圆、接着出笔，但字体的规则从来不选它（规则里也不认它，先换的话前后字母会选错写法）
+    //   pJoin：p 和 s 一笔写完（glyphs.connected → 字体自带的 p.connected…、s.connected.highEntry）。字体默认的 p 写完圆抬笔，
+    //     出笔另起一笔，b o v w 后面的 s 写完身子抬笔；.connected 的写法一笔写完，但字体的规则从来不选它们
+    //     （规则里也不认它们，先换的话前后字母会选错写法）
     // 在定位（字距、重音位置）之后再换：新字形不在字体的重音定位表里，先换的话重音会掉到后一个字母上。
     // 换了写法以后按新字宽把后面的字形往后挪（自己的重音不动），和 apple-font.js 的做法一样
     function swapForms(out, table) {

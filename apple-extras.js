@@ -36,11 +36,15 @@
     "o.highEntry": "o.crossed.highEntry", "o.highEntry.midExit": "o.crossed.highEntry.midExit",
     "o.initial": "o.crossed.initial", "o.midExit.initial": "o.crossed.midExit.initial",
   };
-  // 字体里没有规则会选、但一笔写完的写法：默认的 p 写完圆抬笔，出笔另起一笔（字体标了 joiningOptionalForward）；
-  // p.connected 写到底再沿竖笔回上去绕圆、接着出笔。词尾的 p 没有出笔，本来就是一笔，不用换。
-  // 其他带 .connected 的（s、西里尔字母）换了笔数不减或更多，不换
+  // 字体里没有规则会选、但一笔写完的写法：
+  //   · 默认的 p 写完圆抬笔，出笔另起一笔（字体标了 joiningOptionalForward）；p.connected 写到底再沿竖笔回上去绕圆、接着出笔。
+  //     词尾的 p 没有出笔，本来就是一笔，不用换
+  //   · 接在从高处出笔的字母（b、o、v、w）后面的 s.highEntry：身子收在左下，出笔从右下另起（隔约 300、没标相切），要抬笔；
+  //     s.connected.highEntry 在左下绕一个小圈接着出笔（macintosh 的 sh、rose 的 se）。其他位置的 s 出笔标了相切，本来就是一笔
+  // 西里尔字母等其他带 .connected 的换了笔数不减或更多，不换
   const CONNECTED = {
     "p": "p.connected", "p.highEntry": "p.connected.highEntry", "p.initial": "p.connected.initial",
+    "s.highEntry": "s.connected.highEntry",
     "er.cyrl": "er.cyrl.connected", "er.cyrl.highEntry": "er.cyrl.connected.highEntry", "er.cyrl.initial": "er.cyrl.connected.initial",
   };
   // 穿过的 o 比字体里的底子宽多少（字体单位）：o 的笔画在斜穿的终点就停了，比越顶出笔短约 100，
@@ -104,7 +108,7 @@
   function extend(data, opts = {}) {
     const G = data.glyphs;
     if (opts.zLoop) zLoop(G, opts.zLoop);
-    // pJoin 选项：p（和写法一样的西里尔 р）换成字体自带、但规则不选的一笔写完的写法
+    // pJoin 选项：p（和写法一样的西里尔 р）、高处进笔的 s 换成字体自带、但规则不选的一笔写完的写法
     data.connected = Object.fromEntries(Object.entries(CONNECTED).filter(([from, to]) => G[from] && G[to]));
     const ref = G["o.midExit"];
     if (!ref) return data;

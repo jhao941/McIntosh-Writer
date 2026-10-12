@@ -24,7 +24,7 @@ already on your Mac.
 - Choose Light, Dark or Gradient colors
 - Join the letter o over the top, as the font does, or through the middle,
   as Apple’s earlier hello animations did
-- Write p in one continuous stroke, or lift the pen after its bowl, as the
+- Write p and s in one continuous stroke, or lift the pen partway, as the
   font does by default
 - Download an animated SVG for webpages, Keynote or Figma
 - Inspect joins and compare two versions of the font in the Glyph Inspector
@@ -111,9 +111,10 @@ the exit stroke leaves. Crossbars, accents and the dots on `i` and `j` are
 added when the pen lifts.
 
 **Alternate forms.** The font includes forms of p that retrace the stem and
-continue around the bowl into the next letter, but its rules never choose
-them. McIntosh Writer swaps them in after shaping, the same way it swaps in
-the forms of o that join through the middle.
+continue around the bowl into the next letter, and a form of s that loops at
+the bottom and continues into the next letter after b, o, v or w, but its
+rules never choose them. McIntosh Writer swaps them in after shaping, the
+same way it swaps in the forms of o that join through the middle.
 
 ## Files
 
@@ -125,7 +126,7 @@ the forms of o that join through the middle.
 | `apple-font.js` | Reads `MacintoshSkeletal.otf` and shapes text with harfbuzz |
 | `apple-shaper.js` | Shapes text with rules exported by `tools/apple-rules.py` |
 | `apple-writer.js` | Turns shaped glyphs into pen paths |
-| `apple-extras.js` | Adds forms of o that join through the middle, and chooses the font’s one-stroke forms of p |
+| `apple-extras.js` | Adds forms of o that join through the middle, and chooses the font’s one-stroke forms of p and s |
 | `apple-source.js` | Loads fonts for both pages, from chosen files or from `data/apple/` |
 | `i18n.js` | Interface text in English and Simplified Chinese |
 | `vendor/harfbuzzjs/` | harfbuzzjs 1.6.2 (MIT License) |
