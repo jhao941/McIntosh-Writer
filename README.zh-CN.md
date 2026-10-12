@@ -39,7 +39,7 @@ McIntosh Writer 用 Apple 开机画面“hello”的手写体书写文字，一�
 
 2. 在 McIntosh-Writer 文件夹中连按 `start.command`。它会启动本地网页服务器，并在浏览器中打开 McIntosh Writer。
 
-   也可以自己启动服务器：在该文件夹中运行 `python3 -m http.server 8000`，然后打开 <http://localhost:8000/>。
+   也可以自己启动服务器：在该文件夹中运行 `python3 -m http.server 8000`，然后打开 <http://localhost:8000/>。这个服务器会让浏览器继续使用缓存中的旧文件，因此更新 McIntosh Writer 后，请按下 Command-Shift-R 重新载入页面（在 Safari 中按下 Option-Command-R）。用 `start.command` 启动的服务器没有这个问题。
 
 3. 点按“选取字体”，按下 Command-Shift-G，输入以下路径，然后选取 `MacintoshSkeletal.otf`：
 

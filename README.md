@@ -49,7 +49,10 @@ already on your Mac.
 
    To start the server yourself instead, run
    `python3 -m http.server 8000` in the folder, then open
-   <http://localhost:8000/>.
+   <http://localhost:8000/>. This server lets your browser keep using cached
+   copies of files, so after you update McIntosh Writer, reload the page with
+   Command-Shift-R (in Safari, Option-Command-R). The server that
+   `start.command` starts doesn't have this problem.
 
 3. Click Choose Font, press Command-Shift-G, enter the following path, then
    choose `MacintoshSkeletal.otf`:
