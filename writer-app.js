@@ -20,6 +20,8 @@
   }
 
   const $ = (id) => document.getElementById(id);
+  // 分段控件是一组单选按钮：取选中的那个
+  const choice = (id) => { const on = $(id).querySelector("input:checked"); return on ? on.value : ""; };
   const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
   const r1 = (n) => Math.round(n * 10) / 10;
   const ease = (x) => 0.5 * x + 0.5 * (0.5 - 0.5 * Math.cos(Math.PI * x));
@@ -73,10 +75,10 @@
       speed: Number($("speed").value),
       center: $("center").checked,
       lineSpacing: Number($("line-spacing").value),
-      theme: $("theme").value,
-      gradientMode: $("gradient-mode").value,
-      oCross: !!$("ocross").value,
-      pJoin: !!$("pjoin").value,
+      theme: choice("theme"),
+      gradientMode: choice("gradient-mode"),
+      oCross: !!choice("ocross"),
+      pJoin: !!choice("pjoin"),
     };
   }
 
@@ -247,8 +249,6 @@
       warn.textContent = t("status.missing", { chars: missing.join(" ") });
       status.append(warn, " ");
     }
-    const S = source();
-    if (S) status.append(t("status.font", { name: S.label }));
   }
 
   // ---------- 导出带动画的 SVG ----------
@@ -341,7 +341,7 @@
   }
 
   function videoDimensions() {
-    return $("video-ratio").value === "9:16" ? [720, 1280] : [1280, 720];
+    return choice("video-ratio") === "9:16" ? [720, 1280] : [1280, 720];
   }
 
   function canvasRenderer(currentState, width, height) {
@@ -402,7 +402,7 @@
     drawFrame(1);
     const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
     if (!blob) return;
-    const ratio = $("video-ratio").value;
+    const ratio = choice("video-ratio");
     const name = $("text").value.trim().replace(/[^\p{L}\p{N}]+/gu, "-") || "hello";
     downloadBlob(blob, `${name}-${ratio.replace(":", "x")}.png`);
     $("status").textContent = t("status.staticReady");
@@ -414,7 +414,7 @@
       $("status").textContent = t("status.videoUnsupported");
       return;
     }
-    const ratio = $("video-ratio").value;
+    const ratio = choice("video-ratio");
     const [width, height] = videoDimensions();
     const candidates = [
       ["video/mp4", "mp4"],
@@ -504,7 +504,10 @@
     $(id).addEventListener("input", refresh);
     if (["theme", "gradient-mode", "ocross", "pjoin"].includes(id)) $(id).addEventListener("change", refresh);
   }
-  $("speed").addEventListener("input", () => { if (state) state.opts.speed = Number($("speed").value); });
+  $("speed").addEventListener("input", () => {
+    $("speedval").textContent = `${Number($("speed").value).toFixed(1)}×`;
+    if (state) state.opts.speed = Number($("speed").value);
+  });
   $("export").addEventListener("click", exportSvg);
   $("static-export").addEventListener("click", exportStatic);
   $("video-export").addEventListener("click", exportVideo);

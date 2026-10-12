@@ -5,12 +5,20 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>McIntosh Writer</title>
 <style>
+  /* 按 Apple Human Interface Guidelines 布局：
+     画面在最上面；下面先是"书写"卡片（文字和操作：唯一醒目的按钮是播放，导出用次要按钮），
+     再是分组的设置（外观、排版、写法、播放与导出），每组一张卡片、一行一个设置，标签在左、控件在右；
+     两三个互斥的选项用分段控件，开和关用开关，滑块旁边显示数值；只需设置一次的字体放在最后 */
   :root {
     --bg: #f5f5f7;
     --panel: #ffffff;
     --text: #1d1d1f;
-    --muted: #6e6e73;
-    --line: #d2d2d7;
+    --secondary: #6e6e73;
+    --separator: rgba(60, 60, 67, 0.16);
+    --fill: rgba(120, 120, 128, 0.12);
+    --fill-pressed: rgba(120, 120, 128, 0.22);
+    --selected: #ffffff;
+    --field: #f5f5f7;
     --accent: #0071e3;
     --warn: #b25000;
   }
@@ -19,9 +27,13 @@
       --bg: #000000;
       --panel: #1c1c1e;
       --text: #f5f5f7;
-      --muted: #98989d;
-      --line: #38383a;
-      --accent: #2997ff;
+      --secondary: #98989d;
+      --separator: rgba(84, 84, 88, 0.6);
+      --fill: rgba(120, 120, 128, 0.24);
+      --fill-pressed: rgba(120, 120, 128, 0.36);
+      --selected: #636366;
+      --field: #2c2c2e;
+      --accent: #0a84ff;
       --warn: #ff9f0a;
     }
   }
@@ -31,13 +43,17 @@
     margin: 0;
     background: var(--bg);
     color: var(--text);
-    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", sans-serif;
+    font: 15px/1.47 -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", sans-serif;
+    -webkit-font-smoothing: antialiased;
   }
-  main { max-width: 1040px; margin: 0 auto; padding: 24px 16px 48px; }
+  main { max-width: 1040px; margin: 0 auto; padding: 24px 20px 48px; }
   header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; margin: 0 0 16px; }
-  h1 { font-size: 20px; font-weight: 600; margin: 0; }
-  header nav { font-size: 13px; display: flex; gap: 14px; }
+  h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; margin: 0; }
+  header nav { font-size: 13px; display: flex; gap: 16px; }
   a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  /* 画面 */
   #stage {
     border-radius: 18px;
     min-height: clamp(200px, 40vw, 380px);
@@ -49,49 +65,135 @@
     cursor: pointer;
     overflow: hidden;
     background: #ffffff;
+    box-shadow: 0 0 0 0.5px var(--separator);
   }
   #stage svg { width: 100%; max-height: 420px; display: block; }
   #setup { max-width: 560px; color: #1d1d1f; cursor: default; font-size: 14px; }
   #setup h2 { font-size: 17px; margin: 0 0 8px; }
   #setup code { font-size: 12px; word-break: break-all; background: #f0f0f2; padding: 1px 4px; border-radius: 4px; }
-  .controls {
-    margin-top: 16px;
-    background: var(--panel);
-    border-radius: 14px;
-    padding: 16px;
-    display: grid;
-    gap: 14px;
-  }
-  .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+
+  .card { background: var(--panel); border-radius: 12px; }
+
+  /* 书写：文字和操作 */
+  .composer { margin-top: 16px; padding: 14px; display: grid; gap: 12px; }
   #text {
-    flex: 1 1 260px;
+    width: 100%;
     font: inherit;
     font-size: 18px;
     line-height: 1.35;
-    min-height: 72px;
+    min-height: 76px;
     resize: vertical;
-    padding: 10px 14px;
-    border-radius: 10px;
-    border: 1px solid var(--line);
-    background: var(--bg);
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 0.5px solid var(--separator);
+    background: var(--field);
     color: var(--text);
   }
-  button, select {
+  #text:focus { outline: 3px solid color-mix(in srgb, var(--accent) 45%, transparent); outline-offset: 0; border-color: var(--accent); }
+  .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .actions .spacer { flex: 1 1 auto; }
+  /* 窄屏：播放占满一行（HIG：主要操作用整宽按钮），三个导出按钮等宽排在下一行 */
+  @media (max-width: 520px) {
+    .actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .actions #play { grid-column: 1 / -1; }
+    .actions .spacer { display: none; }
+    .actions button:not(.primary) { padding: 6px 4px; font-size: 13px; }
+  }
+  #status { color: var(--secondary); font-size: 12px; }
+  #status:empty { display: none; }
+  #status .warn { color: var(--warn); }
+
+  button {
     font: inherit;
-    padding: 9px 16px;
-    border-radius: 10px;
-    border: 1px solid var(--line);
-    background: var(--bg);
+    font-size: 14px;
+    min-height: 32px;
+    padding: 6px 14px;
+    border-radius: 8px;
+    border: 0;
+    background: var(--fill);
     color: var(--text);
     cursor: pointer;
   }
-  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-  label { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); }
-  input[type=range] { width: 140px; }
+  button:active { background: var(--fill-pressed); }
+  button.primary { background: var(--accent); color: #fff; font-weight: 500; padding: 6px 22px; }
+  button.primary:active { filter: brightness(0.9); }
+  button:focus-visible, select:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 45%, transparent); outline-offset: 1px; }
+
+  /* 设置：分组，每组一张卡片 */
+  .inspector { margin-top: 24px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 16px; align-items: start; }
+  @media (max-width: 760px) { .inspector { grid-template-columns: minmax(0, 1fr); } }
+  .group h2 { font-size: 13px; font-weight: 600; color: var(--secondary); margin: 0 0 6px 14px; }
+  .form { padding: 0 14px; }
+  .field {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px 12px;
+    min-height: 44px;
+    padding: 7px 0;
+    border-top: 0.5px solid var(--separator);
+  }
+  .field:first-child { border-top: 0; }
+  .field .label { font-size: 14px; }
+
+  /* 分段控件（一组单选按钮） */
+  .seg { display: inline-grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 2px; padding: 2px; border-radius: 8px; background: var(--fill); max-width: 100%; }
+  .seg label { position: relative; display: block; }
+  .seg input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+  .seg span { display: block; padding: 4px 12px; border-radius: 6px; font-size: 13px; text-align: center; white-space: nowrap; transition: background .15s; }
+  .seg input:checked + span { background: var(--selected); font-weight: 500; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12), 0 0 0 0.5px rgba(0, 0, 0, 0.04); }
+  .seg input:focus-visible + span { outline: 3px solid color-mix(in srgb, var(--accent) 45%, transparent); }
+
+  /* 滑块和数值 */
+  .slider { display: flex; align-items: center; gap: 10px; }
+  .slider input { width: 168px; margin: 0; accent-color: var(--accent); }
+  .slider output { min-width: 3.2em; text-align: right; font-size: 13px; color: var(--secondary); font-variant-numeric: tabular-nums; }
+
+  /* 开关 */
+  .switch {
+    appearance: none;
+    -webkit-appearance: none;
+    position: relative;
+    width: 38px;
+    height: 22px;
+    margin: 0;
+    border-radius: 11px;
+    background: var(--fill-pressed);
+    cursor: pointer;
+    transition: background .2s;
+  }
+  .switch::before {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #ffffff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+    transition: transform .2s;
+  }
+  .switch:checked { background: var(--accent); }
+  .switch:checked::before { transform: translateX(16px); }
+  .switch:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 45%, transparent); outline-offset: 1px; }
+
+  /* 字体：只需设置一次，放在最后 */
+  .font-row { margin: 24px 14px 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; font-size: 13px; color: var(--secondary); }
+  .font-row label { display: inline-flex; align-items: center; gap: 8px; }
+  .font-row select {
+    font: inherit;
+    font-size: 13px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    border: 0.5px solid var(--separator);
+    background: var(--panel);
+    color: var(--text);
+  }
   .file { color: var(--accent); cursor: pointer; }
+  .file:hover { text-decoration: underline; }
   .file input { display: none; }
-  #status { color: var(--muted); font-size: 13px; min-height: 1.5em; }
-  #status .warn { color: var(--warn); }
 </style>
 </head>
 <body>
@@ -101,56 +203,100 @@
     <nav><a href="apple.html" data-i18n="nav.inspect">字形检查</a><a href="#" id="lang" data-i18n="nav.lang">English</a></nav>
   </header>
   <div id="stage" title="点按以重新播放" data-i18n-title="stage.hint"></div>
-  <div class="controls">
-    <div class="row">
-      <textarea id="text" rows="2" placeholder="输入要书写的文字" data-i18n-placeholder="input.placeholder" aria-label="输入要书写的文字" data-i18n-aria-label="input.placeholder" autocomplete="off" spellcheck="false">hello</textarea>
-      <button id="play" class="primary" data-i18n="btn.play">播放</button>
+
+  <section class="card composer">
+    <textarea id="text" rows="2" placeholder="输入要书写的文字" data-i18n-placeholder="input.placeholder" aria-label="输入要书写的文字" data-i18n-aria-label="input.placeholder" autocomplete="off" spellcheck="false">hello</textarea>
+    <div class="actions">
+      <button id="play" class="primary" title="播放（⌘↩）" data-i18n="btn.play" data-i18n-title="btn.play.hint">播放</button>
+      <span class="spacer"></span>
       <button id="export" data-i18n="btn.export">下载 SVG 动画</button>
-      <label><span data-i18n="label.videoRatio">宽高比</span>
-        <select id="video-ratio">
-          <option value="16:9" data-i18n="videoRatio.landscape">横向 16:9</option>
-          <option value="9:16" data-i18n="videoRatio.portrait">竖向 9:16</option>
-        </select>
-      </label>
       <button id="video-export" data-i18n="btn.video">导出视频</button>
       <button id="static-export" data-i18n="btn.static">导出图片</button>
     </div>
-    <div class="row">
-      <label><span data-i18n="label.speed">速度</span> <input id="speed" type="range" min="0.4" max="2.5" step="0.1" value="1"></label>
-      <label title="1.55× 与开机画面的粗细相同" data-i18n-title="weight.hint"><span data-i18n="label.weight">粗细</span> <input id="weight" type="range" min="0.5" max="2.5" step="0.05" value="1"> <span id="weightval">1.00×</span></label>
-      <label><input id="center" type="checkbox" checked> <span data-i18n="label.center">文字居中</span></label>
-      <label title="调整多行文字之间的距离" data-i18n-title="lineSpacing.hint"><span data-i18n="label.lineSpacing">行距</span> <input id="line-spacing" type="range" min="0.65" max="1.8" step="0.05" value="1"> <span id="line-spacing-val">1.00×</span></label>
-      <label><span data-i18n="label.theme">配色</span>
-        <select id="theme">
-          <option value="ink" data-i18n="theme.ink">浅色</option>
-          <option value="night" data-i18n="theme.night">深色</option>
-          <option value="color" data-i18n="theme.color">渐变</option>
-        </select>
-      </label>
-      <label id="gradient-mode-wrap" hidden><span data-i18n="label.gradientMode">背景</span>
-        <select id="gradient-mode">
-          <option value="light" data-i18n="gradientMode.light">白色</option>
-          <option value="dark" data-i18n="gradientMode.dark">深色</option>
-        </select>
-      </label>
-      <label><span data-i18n="label.ocross">o 的连笔</span>
-        <select id="ocross">
-          <option value="" data-i18n="ocross.over">越过顶部</option>
-          <option value="x" data-i18n="ocross.through">穿过中间</option>
-        </select>
-      </label>
-      <label><span data-i18n="label.pjoin">p 和 s 的写法</span>
-        <select id="pjoin">
-          <option value="x" data-i18n="pjoin.one">一笔写完</option>
-          <option value="" data-i18n="pjoin.lift">中途抬笔</option>
-        </select>
-      </label>
-    </div>
-    <div class="row">
-      <label><span data-i18n="label.font">字体</span> <select id="src"></select></label>
-      <label class="file"><span data-i18n="btn.chooseFont">选取字体…</span><input id="file" type="file" accept=".otf,.ttf" multiple></label>
-    </div>
-    <div id="status"></div>
+    <div id="status" role="status"></div>
+  </section>
+
+  <div class="inspector">
+    <section class="group">
+      <h2 data-i18n="section.appearance">外观</h2>
+      <div class="card form">
+        <div class="field">
+          <span class="label" id="theme-label" data-i18n="label.theme">配色</span>
+          <div class="seg" id="theme" role="radiogroup" aria-labelledby="theme-label">
+            <label><input type="radio" name="theme" value="ink" checked><span data-i18n="theme.ink">浅色</span></label>
+            <label><input type="radio" name="theme" value="night"><span data-i18n="theme.night">深色</span></label>
+            <label><input type="radio" name="theme" value="color"><span data-i18n="theme.color">渐变</span></label>
+          </div>
+        </div>
+        <div class="field" id="gradient-mode-wrap" hidden>
+          <span class="label" id="gradient-mode-label" data-i18n="label.gradientMode">背景</span>
+          <div class="seg" id="gradient-mode" role="radiogroup" aria-labelledby="gradient-mode-label">
+            <label><input type="radio" name="gradient-mode" value="light" checked><span data-i18n="gradientMode.light">白色</span></label>
+            <label><input type="radio" name="gradient-mode" value="dark"><span data-i18n="gradientMode.dark">深色</span></label>
+          </div>
+        </div>
+        <label class="field" title="1.55× 与开机画面的粗细相同" data-i18n-title="weight.hint">
+          <span class="label" data-i18n="label.weight">粗细</span>
+          <span class="slider"><input id="weight" type="range" min="0.5" max="2.5" step="0.05" value="1"><output id="weightval">1.00×</output></span>
+        </label>
+      </div>
+    </section>
+
+    <section class="group">
+      <h2 data-i18n="section.layout">排版</h2>
+      <div class="card form">
+        <label class="field" title="调整多行文字之间的距离" data-i18n-title="lineSpacing.hint">
+          <span class="label" data-i18n="label.lineSpacing">行距</span>
+          <span class="slider"><input id="line-spacing" type="range" min="0.65" max="1.8" step="0.05" value="1"><output id="line-spacing-val">1.00×</output></span>
+        </label>
+        <label class="field">
+          <span class="label" data-i18n="label.center">文字居中</span>
+          <input id="center" class="switch" type="checkbox" role="switch" checked>
+        </label>
+      </div>
+    </section>
+
+    <section class="group">
+      <h2 data-i18n="section.letterforms">写法</h2>
+      <div class="card form">
+        <div class="field">
+          <span class="label" id="ocross-label" data-i18n="label.ocross">o 的连笔</span>
+          <div class="seg" id="ocross" role="radiogroup" aria-labelledby="ocross-label">
+            <label><input type="radio" name="ocross" value="" checked><span data-i18n="ocross.over">越过顶部</span></label>
+            <label><input type="radio" name="ocross" value="x"><span data-i18n="ocross.through">穿过中间</span></label>
+          </div>
+        </div>
+        <div class="field">
+          <span class="label" id="pjoin-label" data-i18n="label.pjoin">p 和 s 的写法</span>
+          <div class="seg" id="pjoin" role="radiogroup" aria-labelledby="pjoin-label">
+            <label><input type="radio" name="pjoin" value="x" checked><span data-i18n="pjoin.one">一笔写完</span></label>
+            <label><input type="radio" name="pjoin" value=""><span data-i18n="pjoin.lift">中途抬笔</span></label>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="group">
+      <h2 data-i18n="section.playback">播放与导出</h2>
+      <div class="card form">
+        <label class="field">
+          <span class="label" data-i18n="label.speed">速度</span>
+          <span class="slider"><input id="speed" type="range" min="0.4" max="2.5" step="0.1" value="1"><output id="speedval">1.0×</output></span>
+        </label>
+        <div class="field">
+          <span class="label" id="video-ratio-label" data-i18n="label.videoRatio">宽高比</span>
+          <div class="seg" id="video-ratio" role="radiogroup" aria-labelledby="video-ratio-label">
+            <label><input type="radio" name="video-ratio" value="16:9" checked><span data-i18n="videoRatio.landscape">横向 16:9</span></label>
+            <label><input type="radio" name="video-ratio" value="9:16"><span data-i18n="videoRatio.portrait">竖向 9:16</span></label>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="font-row">
+    <label id="src-wrap"><span data-i18n="label.font">字体</span> <select id="src"></select></label>
+    <label class="file"><span data-i18n="btn.chooseFont">选取字体…</span><input id="file" type="file" accept=".otf,.ttf" multiple></label>
   </div>
 </main>
 <script src="i18n.js"></script>
