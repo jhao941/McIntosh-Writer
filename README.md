@@ -20,7 +20,7 @@ already on your Mac.
 - Write any text the font supports, including accented Latin, Greek and
   Cyrillic letters, with a stroke-by-stroke animation
 - Letterforms and joins that match Apple’s own rendering
-- Adjust speed and pen weight; the default weight matches the hello screen
+- Adjust speed and pen weight; at 1.55× the weight matches the hello screen
 - Choose Light, Dark or Gradient colors
 - Join the letter o over the top, as the font does, or through the middle,
   as Apple’s earlier hello animations did
