@@ -15,17 +15,14 @@ McIntosh Writer 用 Apple 开机画面“hello”的手写体书写文字，一�
 ## 功能
 
 - 书写字体支持的任意文字，包括带重音的拉丁字母、希腊字母和西里尔字母，并以一笔一笔的动画呈现
-- 按 Enter 换行，在不同基线上书写最多两行文字
-- 使用“文字居中”选项，让每一行相对于最长的一行居中
-- 调整多行文字之间的行距
-- 以 60 fps 导出兼容 QuickTime 的横向 16:9 或竖向 9:16 H.264 MP4（转换工具不可用时导出 WebM）
+- 书写多行文字，每行各在一条基线上，可以调整行距，也可以让各行居中
 - 字形和连笔与 Apple 自己的渲染结果一致
 - 调整书写速度和笔画粗细，1.55× 与开机画面的粗细相同
 - 选择浅色、深色或渐变配色，并为渐变文字选择白色或深色背景
 - 字母 o 的连笔可以越过顶部（字体原样），也可以穿过中间（Apple 早年 hello 动画的写法）
 - 字母 p 和 s 可以一笔写完，也可以像字体默认的那样中途抬笔
 - 下载 SVG 动画，用于网页、Keynote 或 Figma
-- 按当前比例导出写完后的静态 PNG
+- 按横向 16:9 或竖向 9:16 导出书写过程的视频，或写完后的图片
 - 在“字形检查”中查看字母之间的连笔，并对比两个版本的字体
 
 ## 系统要求
@@ -33,7 +30,7 @@ McIntosh Writer 用 Apple 开机画面“hello”的手写体书写文字，一�
 - 装有 macOS 27 的 Mac（系统附带 Macintosh Skeletal 字体）
 - 最新版本的 Safari、Chrome 或 Firefox
 - Python 3，用于启动本地网页服务器（随 Xcode 命令行工具附带）
-- ffmpeg，用于导出 MP4 视频（可选；没有它仍可导出 WebM）
+- ffmpeg，用于把视频导出为 MP4（可选；没有它会导出 WebM）。可以用 [Homebrew](https://brew.sh) 安装：`brew install ffmpeg`
 
 ## 开始使用
 
@@ -45,7 +42,7 @@ McIntosh Writer 用 Apple 开机画面“hello”的手写体书写文字，一�
 
 2. 在 McIntosh-Writer 文件夹中连按 `start.command`。它会启动本地网页服务器，并在浏览器中打开 McIntosh Writer。
 
-   也可以自己启动服务器：在该文件夹中运行 `python3 -m http.server 8000`，然后打开 <http://localhost:8000/>。这个服务器会让浏览器继续使用缓存中的旧文件，因此更新 McIntosh Writer 后，请按下 Command-Shift-R 重新载入页面（在 Safari 中按下 Option-Command-R）。用 `start.command` 启动的服务器没有这个问题。
+   也可以自己启动服务器：在该文件夹中运行 `python3 writer-server.py 8000`，然后打开 <http://localhost:8000/>。
 
 3. 点按“选取字体”，按下 Command-Shift-G，输入以下路径，然后选取 `MacintoshSkeletal.otf`：
 
@@ -55,10 +52,9 @@ McIntosh Writer 用 Apple 开机画面“hello”的手写体书写文字，一�
 
 浏览器会记住这个字体，只需选取一次。
 
-文字框支持换行。按 Enter 即可在新的基线上书写第二行；两行都会包含在动画和下载的 SVG 中。
-使用“行距”调整基线之间的距离。“导出视频”可以生成横向 16:9 或竖向 9:16 的 WebM 动画。
-如果安装了 ffmpeg，视频会以平滑的 60 fps 导出为 H.264 MP4；否则会保留 WebM 格式。
-选择“渐变”后，可以为彩色文字选择白色或深色背景。“导出静态图”会按当前视频比例下载写完后的最终画面。
+按下 Return 键另起一行，按下 Command-Return 重新播放动画。用“行距”调整各行之间的距离，用“文字居中”让每一行相对于最长的一行居中。选择“渐变”配色时，还可以选择白色或深色背景。
+
+“导出视频”按所选的宽高比（横向 16:9 或竖向 9:16）录制书写过程。如果安装了 ffmpeg，McIntosh Writer 会把录制的视频转换为平滑的 60 fps H.264 MP4，可以用 QuickTime Player 播放；否则会得到 WebM 视频。“导出图片”按同样的宽高比把写完的文字下载为 PNG。
 
 在“访达”中直接打开 `index.html` 时，McIntosh Writer 无法运行：浏览器不允许从文件打开的网页载入读取字体所需的组件。
 
@@ -93,9 +89,10 @@ McIntosh Writer 在排字之后换上这些写法，和换上从中间穿过的 
 
 | 文件 | 说明 |
 |---|---|
-| `index.html`、`writer-app.js` | McIntosh Writer：文字、动画、配色和 SVG 下载 |
+| `index.html`、`writer-app.js` | McIntosh Writer：文字、动画、配色，以及导出 SVG、视频和图片 |
 | `apple.html` | 字形检查：连笔、与原版动画对照、两个字体叠加对比 |
 | `start.command` | 启动本地网页服务器并打开 McIntosh Writer |
+| `writer-server.py` | 本地网页服务器；用 ffmpeg 把导出的视频转换为 MP4 |
 | `apple-font.js` | 读取 `MacintoshSkeletal.otf`，用 harfbuzz 排字 |
 | `apple-shaper.js` | 用 `tools/apple-rules.py` 导出的规则排字 |
 | `apple-writer.js` | 把排好的字形画成笔画 |

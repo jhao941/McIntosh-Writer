@@ -475,8 +475,7 @@
     stream.getTracks().forEach((track) => track.stop());
     const name = ($("text").value.trim().replace(/[^\p{L}\p{N}]+/gu, "-") || "hello");
     downloadBlob(blob, `${name}-${ratio.replace(":", "x")}.${extension}`);
-    if (extension === "webm") $("status").textContent = t("status.videoFallback");
-    else showStatus(state.shaped);
+    $("status").textContent = t(extension === "webm" ? "status.videoFallback" : "status.videoReady");
   }
 
   // 调试 / 其他页面用
@@ -488,6 +487,10 @@
   $("text").addEventListener("input", () => {
     clearTimeout(typing);
     typing = setTimeout(replay, 350);
+  });
+  // Enter 换行；Command-Return（其他系统 Ctrl-Enter）重播
+  $("text").addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); replay(); }
   });
   $("play").addEventListener("click", replay);
   stage.addEventListener("click", (e) => { if (state) replay(); });

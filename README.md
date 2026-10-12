@@ -19,9 +19,8 @@ already on your Mac.
 
 - Write any text the font supports, including accented Latin, Greek and
   Cyrillic letters, with a stroke-by-stroke animation
-- Enter a line break to write up to two lines of text on separate baselines
-- Center each line against the widest line with the Center Text option
-- Adjust the spacing between lines
+- Write several lines, each on its own baseline, with adjustable line
+  spacing and optional centering
 - Letterforms and joins that match Apple’s own rendering
 - Adjust speed and pen weight; at 1.55× the weight matches the hello screen
 - Choose Light, Dark or Gradient colors, with a white or dark background for gradient lettering
@@ -30,8 +29,8 @@ already on your Mac.
 - Write p and s in one continuous stroke, or lift the pen partway, as the
   font does by default
 - Download an animated SVG for webpages, Keynote or Figma
-- Export a static PNG of the finished result in 16:9 or 9:16
-- Export smooth 60 fps, QuickTime-compatible H.264 MP4 (or WebM when the local converter is unavailable) in 16:9 or 9:16
+- Export a video of the animation, or an image of the finished text, in
+  landscape 16:9 or portrait 9:16
 - Inspect joins and compare two versions of the font in the Glyph Inspector
 
 ## Requirements
@@ -40,7 +39,8 @@ already on your Mac.
 - A current version of Safari, Chrome or Firefox
 - Python 3 to run a local web server (included with the Xcode Command Line
   Tools)
-- ffmpeg for MP4 video export (optional; WebM export remains available without it)
+- ffmpeg to export video as MP4 (optional; without it, video is exported as
+  WebM). You can install it with [Homebrew](https://brew.sh): `brew install ffmpeg`
 
 ## Getting started
 
@@ -53,12 +53,8 @@ already on your Mac.
 2. In the McIntosh-Writer folder, double-click `start.command`. It starts a
    local web server and opens McIntosh Writer in your browser.
 
-   To start the server yourself instead, run
-   `python3 -m http.server 8000` in the folder, then open
-   <http://localhost:8000/>. This server lets your browser keep using cached
-   copies of files, so after you update McIntosh Writer, reload the page with
-   Command-Shift-R (in Safari, Option-Command-R). The server that
-   `start.command` starts doesn't have this problem.
+   To start the server yourself instead, run `python3 writer-server.py 8000`
+   in the folder, then open <http://localhost:8000/>.
 
 3. Click Choose Font, press Command-Shift-G, enter the following path, then
    choose `MacintoshSkeletal.otf`:
@@ -69,14 +65,16 @@ already on your Mac.
 
 Your browser remembers the font, so you need to choose it only once.
 
-The text box accepts line breaks. Press Enter to write a second line on a
-separate baseline; both lines are included in the animation and downloaded SVG.
-Use Line Spacing to adjust the distance between the baselines. Export Video
-creates a smooth 60 fps H.264 MP4 in either Landscape 16:9 or Portrait 9:16
-when ffmpeg is installed. It falls back to WebM when the converter is unavailable.
-When Gradient is selected, choose a White or Dark background for the colored
-letters. Export Static PNG downloads the fully written final frame in the
-selected video ratio.
+Press Return to start a new line, and press Command-Return to play the
+animation again. Use Line Spacing to adjust the distance between lines, and
+Center Text to center each line on the widest one. When you choose Gradient,
+you can also choose a White or Dark background.
+
+Export Video records the animation in the aspect ratio you choose, Landscape
+16:9 or Portrait 9:16. If ffmpeg is installed, McIntosh Writer converts the
+recording to a smooth 60 fps H.264 MP4 that plays in QuickTime Player;
+otherwise you get a WebM video. Export Image downloads the finished text as a
+PNG in the same aspect ratio.
 
 McIntosh Writer can’t run when you open `index.html` directly from the
 Finder, because browsers don’t let a page opened from a file load the
@@ -135,9 +133,10 @@ same way it swaps in the forms of o that join through the middle.
 
 | File | Description |
 |---|---|
-| `index.html`, `writer-app.js` | McIntosh Writer: text, animation, colors and SVG download |
+| `index.html`, `writer-app.js` | McIntosh Writer: text, animation, colors, and SVG, video and image export |
 | `apple.html` | Glyph Inspector: joins, comparison with the original animations, two fonts overlaid |
 | `start.command` | Starts a local web server and opens McIntosh Writer |
+| `writer-server.py` | The local web server; converts exported video to MP4 with ffmpeg |
 | `apple-font.js` | Reads `MacintoshSkeletal.otf` and shapes text with harfbuzz |
 | `apple-shaper.js` | Shapes text with rules exported by `tools/apple-rules.py` |
 | `apple-writer.js` | Turns shaped glyphs into pen paths |

@@ -106,14 +106,14 @@
       <textarea id="text" rows="2" placeholder="输入要书写的文字" data-i18n-placeholder="input.placeholder" aria-label="输入要书写的文字" data-i18n-aria-label="input.placeholder" autocomplete="off" spellcheck="false">hello</textarea>
       <button id="play" class="primary" data-i18n="btn.play">播放</button>
       <button id="export" data-i18n="btn.export">下载 SVG 动画</button>
-      <label><span data-i18n="label.videoRatio">视频比例</span>
+      <label><span data-i18n="label.videoRatio">宽高比</span>
         <select id="video-ratio">
           <option value="16:9" data-i18n="videoRatio.landscape">横向 16:9</option>
           <option value="9:16" data-i18n="videoRatio.portrait">竖向 9:16</option>
         </select>
       </label>
       <button id="video-export" data-i18n="btn.video">导出视频</button>
-      <button id="static-export" data-i18n="btn.static">导出静态图</button>
+      <button id="static-export" data-i18n="btn.static">导出图片</button>
     </div>
     <div class="row">
       <label><span data-i18n="label.speed">速度</span> <input id="speed" type="range" min="0.4" max="2.5" step="0.1" value="1"></label>
@@ -127,7 +127,7 @@
           <option value="color" data-i18n="theme.color">渐变</option>
         </select>
       </label>
-      <label id="gradient-mode-wrap" hidden><span data-i18n="label.gradientMode">渐变文字背景</span>
+      <label id="gradient-mode-wrap" hidden><span data-i18n="label.gradientMode">背景</span>
         <select id="gradient-mode">
           <option value="light" data-i18n="gradientMode.light">白色</option>
           <option value="dark" data-i18n="gradientMode.dark">深色</option>
