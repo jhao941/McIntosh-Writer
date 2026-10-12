@@ -26,6 +26,7 @@
     }
   }
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   body {
     margin: 0;
     background: var(--bg);
@@ -62,10 +63,13 @@
     gap: 14px;
   }
   .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
-  input[type=text] {
+  #text {
     flex: 1 1 260px;
     font: inherit;
     font-size: 18px;
+    line-height: 1.35;
+    min-height: 72px;
+    resize: vertical;
     padding: 10px 14px;
     border-radius: 10px;
     border: 1px solid var(--line);
@@ -99,18 +103,34 @@
   <div id="stage" title="点按以重新播放" data-i18n-title="stage.hint"></div>
   <div class="controls">
     <div class="row">
-      <input id="text" type="text" value="hello" placeholder="输入要书写的文字" data-i18n-placeholder="input.placeholder" aria-label="输入要书写的文字" data-i18n-aria-label="input.placeholder" autocomplete="off" spellcheck="false">
+      <textarea id="text" rows="2" placeholder="输入要书写的文字" data-i18n-placeholder="input.placeholder" aria-label="输入要书写的文字" data-i18n-aria-label="input.placeholder" autocomplete="off" spellcheck="false">hello</textarea>
       <button id="play" class="primary" data-i18n="btn.play">播放</button>
       <button id="export" data-i18n="btn.export">下载 SVG 动画</button>
+      <label><span data-i18n="label.videoRatio">视频比例</span>
+        <select id="video-ratio">
+          <option value="16:9" data-i18n="videoRatio.landscape">横向 16:9</option>
+          <option value="9:16" data-i18n="videoRatio.portrait">竖向 9:16</option>
+        </select>
+      </label>
+      <button id="video-export" data-i18n="btn.video">导出视频</button>
+      <button id="static-export" data-i18n="btn.static">导出静态图</button>
     </div>
     <div class="row">
       <label><span data-i18n="label.speed">速度</span> <input id="speed" type="range" min="0.4" max="2.5" step="0.1" value="1"></label>
       <label title="1.55× 与开机画面的粗细相同" data-i18n-title="weight.hint"><span data-i18n="label.weight">粗细</span> <input id="weight" type="range" min="0.5" max="2.5" step="0.05" value="1"> <span id="weightval">1.00×</span></label>
+      <label><input id="center" type="checkbox" checked> <span data-i18n="label.center">文字居中</span></label>
+      <label title="调整多行文字之间的距离" data-i18n-title="lineSpacing.hint"><span data-i18n="label.lineSpacing">行距</span> <input id="line-spacing" type="range" min="0.65" max="1.8" step="0.05" value="1"> <span id="line-spacing-val">1.00×</span></label>
       <label><span data-i18n="label.theme">配色</span>
         <select id="theme">
           <option value="ink" data-i18n="theme.ink">浅色</option>
           <option value="night" data-i18n="theme.night">深色</option>
           <option value="color" data-i18n="theme.color">渐变</option>
+        </select>
+      </label>
+      <label id="gradient-mode-wrap" hidden><span data-i18n="label.gradientMode">渐变文字背景</span>
+        <select id="gradient-mode">
+          <option value="light" data-i18n="gradientMode.light">白色</option>
+          <option value="dark" data-i18n="gradientMode.dark">深色</option>
         </select>
       </label>
       <label><span data-i18n="label.ocross">o 的连笔</span>

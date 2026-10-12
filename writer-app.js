@@ -4,6 +4,7 @@
   const SVG_NS = "http://www.w3.org/2000/svg";
   const PEN_SPEED = 3200; // 速度 = 1 时，每秒写多少字体单位（hello 约 3 秒）
   const DOT_COST = 90; // 点一个点相当于写多长
+  const VIDEO_FPS = 60;
   // 字体里存的是笔的半径；Apple 开机画面按 1.55 倍画（Macintosh Skeletal Filled 从渲染程序里读出来的）
   const THEMES = {
     ink: { bg: "#ffffff", ink: "#1d1d1f" },
@@ -11,6 +12,12 @@
     color: { bg: "#ffffff", ink: "url(#hw-gradient)" },
   };
   const GRADIENT = ["#ff9f0a", "#ff375f", "#bf5af2", "#5e5ce6", "#0a84ff", "#30d158"];
+  function themeFor(opts) {
+    const theme = THEMES[opts.theme];
+    return opts.theme === "color" && opts.gradientMode === "dark"
+      ? { ...theme, bg: "#000000" }
+      : theme;
+  }
 
   const $ = (id) => document.getElementById(id);
   const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
@@ -64,7 +71,10 @@
     return {
       weight: Number($("weight").value),
       speed: Number($("speed").value),
+      center: $("center").checked,
+      lineSpacing: Number($("line-spacing").value),
       theme: $("theme").value,
+      gradientMode: $("gradient-mode").value,
       oCross: !!$("ocross").value,
       pJoin: !!$("pjoin").value,
     };
@@ -79,6 +89,63 @@
     });
     for (const d of L.dots) if (d.after >= L.paths.length) seq.push({ dot: d });
     return seq;
+  }
+
+  // Shape each line independently so a newline starts a fresh baseline. The
+  // font shaper only handles glyph runs, so combining lines after shaping also
+  // keeps line breaks out of the missing-character warning.
+  function layoutText(text, S, opts) {
+    const paths = [], dots = [], shaped = [];
+    const lines = text.split("\n");
+    const lineHeight = Math.max(700, Math.round((S.glyphs.metrics?.xHeight || 400) * 1.8)) * opts.lineSpacing;
+    const entries = [];
+    let pathOffset = 0;
+    let charOffset = 0;
+
+    lines.forEach((line, lineIndex) => {
+      const lineShaped = S.shaper.shape(line, { oCross: opts.oCross, pJoin: opts.pJoin });
+      const glyphOffset = shaped.length;
+      shaped.push(...lineShaped.map((g) => ({ ...g, cluster: g.cluster + charOffset })));
+      const L = S.writer.layout(lineShaped);
+      entries.push({ L, dy: lineIndex * lineHeight, glyphOffset, pathOffset });
+      pathOffset += L.paths.length;
+      charOffset += line.length + (lineIndex < lines.length - 1 ? 1 : 0);
+    });
+
+    const drawn = entries.filter(({ L }) => L.paths.length || L.dots.length);
+    const contentMinX = drawn.length ? Math.min(...drawn.map(({ L }) => L.bounds.minX)) : 0;
+    const contentMaxX = drawn.length ? Math.max(...drawn.map(({ L }) => L.bounds.maxX)) : 0;
+    const targetCenter = (contentMinX + contentMaxX) / 2;
+
+    for (const { L, dy, glyphOffset, pathOffset } of entries) {
+      const dx = opts.center && (L.paths.length || L.dots.length)
+        ? targetCenter - (L.bounds.minX + L.bounds.maxX) / 2
+        : 0;
+
+      for (const p of L.paths) {
+        paths.push({
+          ...p,
+          glyphs: p.glyphs?.map((g) => g + glyphOffset),
+          joins: p.joins?.map((j) => ({ ...j, glyphs: j.glyphs?.map((g) => g + glyphOffset) })),
+          segs: p.segs.map((seg) => seg.map((v, i) => i % 2 ? v + dy : v + dx)),
+        });
+      }
+      for (const d of L.dots) dots.push({ ...d, x: d.x + dx, y: d.y + dy, after: d.after + pathOffset });
+    }
+
+    const xs = [], ys = [];
+    for (const p of paths) for (const seg of p.segs) for (let i = 0; i < seg.length; i += 2) {
+      xs.push(seg[i]);
+      ys.push(seg[i + 1]);
+    }
+    for (const d of dots) {
+      xs.push(d.x);
+      ys.push(d.y);
+    }
+    const bounds = xs.length
+      ? { minX: Math.min(...xs), maxX: Math.max(...xs), minY: Math.min(...ys), maxY: Math.max(...ys) }
+      : { minX: 0, maxX: 0, minY: 0, maxY: 0 };
+    return { paths, dots, bounds, shaped };
   }
 
   // 时间轴：写一笔的时间按长度算，抬笔移动到下一笔的起点也算一点时间
@@ -109,11 +176,12 @@
     if (!S) { state = null; showSetup(); return; }
     const opts = options();
     const text = $("text").value;
-    const shaped = S.shaper.shape(text, { oCross: opts.oCross, pJoin: opts.pJoin });
-    const L = S.writer.layout(shaped);
+    const L = layoutText(text, S, opts);
+    const shaped = L.shaped;
     const seq = sequence(L);
-    const theme = THEMES[opts.theme];
+    const theme = themeFor(opts);
     stage.style.background = theme.bg;
+    $("gradient-mode-wrap").hidden = opts.theme !== "color";
     if (!stage.contains(svg)) stage.replaceChildren(svg);
     svg.replaceChildren();
     const b = L.bounds;
@@ -135,7 +203,7 @@
       return node;
     });
     const lengths = nodes.map((n, i) => (seq[i].dot ? 0 : n.getTotalLength()));
-    state = { seq, nodes, lengths, time: timeline(seq, lengths), opts, shaped };
+    state = { seq, nodes, lengths, time: timeline(seq, lengths), opts, shaped, bounds: b };
     showStatus(shaped);
   }
 
@@ -190,7 +258,7 @@
     const total = time[0].total;
     const duration = total / (PEN_SPEED * opts.speed);
     const pct = (c) => (easeInverse(clamp(c / total, 0, 1)) * 100).toFixed(3);
-    const theme = THEMES[opts.theme];
+    const theme = themeFor(opts);
     const css = [], shapes = [];
     seq.forEach((it, i) => {
       const a = pct(time[i].start);
@@ -211,7 +279,9 @@
     const defs = opts.theme === "color"
       ? `<defs><linearGradient id="hw-gradient" gradientUnits="userSpaceOnUse" x1="${vx}" y1="0" x2="${Number(vx) + Number(vw)}" y2="0">${GRADIENT.map((c, i) => `<stop offset="${i / (GRADIENT.length - 1)}" stop-color="${c}"/>`).join("")}</linearGradient></defs>`
       : "";
-    const bg = opts.theme === "night" ? `<rect x="${vx}" y="${vy}" width="${vw}" height="${vh}" fill="${theme.bg}"/>` : "";
+    const bg = (opts.theme === "night" || (opts.theme === "color" && opts.gradientMode === "dark"))
+      ? `<rect x="${vx}" y="${vy}" width="${vw}" height="${vh}" fill="${theme.bg}"/>`
+      : "";
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb}">\n${defs}<style>${css.join("\n")}</style>\n${bg}${shapes.join("\n")}\n</svg>\n`;
   }
 
@@ -226,6 +296,189 @@
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }
 
+  function cubicPoint(c, t) {
+    const u = 1 - t;
+    return [
+      u * u * u * c[0] + 3 * u * u * t * c[2] + 3 * u * t * t * c[4] + t * t * t * c[6],
+      u * u * u * c[1] + 3 * u * u * t * c[3] + 3 * u * t * t * c[5] + t * t * t * c[7],
+    ];
+  }
+
+  function samplePath(segs) {
+    const points = [];
+    let length = 0;
+    let previous = null;
+    for (const seg of segs) {
+      for (let i = 0; i <= 48; i++) {
+        const point = cubicPoint(seg, i / 48);
+        if (previous) length += Math.hypot(point[0] - previous[0], point[1] - previous[1]);
+        points.push(point);
+        previous = point;
+      }
+    }
+    return { points, length };
+  }
+
+  function drawCanvasPath(ctx, sample, progress) {
+    if (!sample.points.length) return;
+    const target = sample.length * clamp(progress, 0, 1);
+    ctx.beginPath();
+    ctx.moveTo(sample.points[0][0], sample.points[0][1]);
+    let traveled = 0;
+    for (let i = 1; i < sample.points.length; i++) {
+      const a = sample.points[i - 1], b = sample.points[i];
+      const segment = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      if (traveled + segment <= target) {
+        ctx.lineTo(b[0], b[1]);
+        traveled += segment;
+        continue;
+      }
+      const fraction = segment ? (target - traveled) / segment : 0;
+      ctx.lineTo(a[0] + (b[0] - a[0]) * fraction, a[1] + (b[1] - a[1]) * fraction);
+      break;
+    }
+    ctx.stroke();
+  }
+
+  function videoDimensions() {
+    return $("video-ratio").value === "9:16" ? [720, 1280] : [1280, 720];
+  }
+
+  function canvasRenderer(currentState, width, height) {
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    const { seq, time, opts, bounds } = currentState;
+    const samples = seq.map((it) => it.path ? samplePath(it.path.segs) : null);
+    const maxW = Math.max(34, ...seq.filter((it) => it.path).map((it) => it.path.width)) * 2 * opts.weight;
+    const pad = maxW / 2 + 40;
+    const vx = bounds.minX - pad, vy = bounds.minY - pad;
+    const vw = bounds.maxX - bounds.minX + pad * 2, vh = bounds.maxY - bounds.minY + pad * 2;
+    const scale = Math.min(width / vw, height / vh);
+    const theme = themeFor(opts);
+    const ink = opts.theme === "color" ? ctx.createLinearGradient(bounds.minX, 0, bounds.maxX, 0) : theme.ink;
+    if (opts.theme === "color") GRADIENT.forEach((color, i) => ink.addColorStop(i / (GRADIENT.length - 1), color));
+    const drawFrame = (progress) => {
+      ctx.fillStyle = theme.bg;
+      ctx.fillRect(0, 0, width, height);
+      ctx.save();
+      ctx.translate((width - vw * scale) / 2, (height - vh * scale) / 2);
+      ctx.scale(scale, scale);
+      ctx.translate(-vx, -vy);
+      ctx.strokeStyle = ink;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      const current = progress * time[0].total;
+      seq.forEach((it, i) => {
+        const f = clamp((current - time[i].start) / time[i].cost, 0, 1);
+        if (it.dot) {
+          ctx.beginPath();
+          ctx.fillStyle = ink;
+          ctx.arc(it.dot.x, it.dot.y, it.dot.r * 2 * opts.weight * f, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          ctx.lineWidth = it.path.width * 2 * opts.weight;
+          drawCanvasPath(ctx, samples[i], f);
+        }
+      });
+      ctx.restore();
+    };
+    return { canvas, drawFrame };
+  }
+
+  function downloadBlob(blob, name) {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
+
+  async function exportStatic() {
+    if (!state || !state.nodes.length) return;
+    const [width, height] = videoDimensions();
+    const { canvas, drawFrame } = canvasRenderer(state, width, height);
+    drawFrame(1);
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+    if (!blob) return;
+    const ratio = $("video-ratio").value;
+    const name = $("text").value.trim().replace(/[^\p{L}\p{N}]+/gu, "-") || "hello";
+    downloadBlob(blob, `${name}-${ratio.replace(":", "x")}.png`);
+    $("status").textContent = t("status.staticReady");
+  }
+
+  async function exportVideo() {
+    if (!state || !state.nodes.length) return;
+    if (typeof MediaRecorder === "undefined" || !HTMLCanvasElement.prototype.captureStream) {
+      $("status").textContent = t("status.videoUnsupported");
+      return;
+    }
+    const ratio = $("video-ratio").value;
+    const [width, height] = videoDimensions();
+    const candidates = [
+      ["video/mp4", "mp4"],
+      ["video/webm;codecs=vp9", "webm"],
+      ["video/webm;codecs=vp8", "webm"],
+      ["video/webm", "webm"],
+    ];
+    const format = candidates.find(([mime]) => MediaRecorder.isTypeSupported(mime));
+    if (!format) {
+      $("status").textContent = t("status.videoUnsupported");
+      return;
+    }
+
+    const { canvas, drawFrame } = canvasRenderer(state, width, height);
+    const { time, opts } = state;
+
+    $("status").textContent = t("status.videoExporting");
+    const stream = canvas.captureStream(VIDEO_FPS);
+    const recorder = new MediaRecorder(stream, { mimeType: format[0] });
+    const chunks = [];
+    const stopped = new Promise((resolve, reject) => {
+      recorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+      recorder.onerror = () => reject(recorder.error || new Error("MediaRecorder failed"));
+      recorder.onstop = () => resolve(new Blob(chunks, { type: format[0] }));
+    });
+    const duration = time[0].total / (PEN_SPEED * opts.speed);
+    const frames = Math.max(1, Math.ceil(duration * VIDEO_FPS));
+    recorder.start();
+    for (let frame = 0; frame <= frames; frame++) {
+      drawFrame(frame / frames);
+      await new Promise((resolve) => setTimeout(resolve, 1000 / VIDEO_FPS));
+    }
+    recorder.stop();
+    let blob = await stopped;
+    let extension = format[1];
+    // Some browsers report an MP4 MIME type while writing VP9 into the
+    // container. Always use the local converter so the downloaded MP4 is
+    // H.264/yuv420p and stays compatible with QuickTime.
+    if (format[1] === "webm" || format[1] === "mp4") {
+      $("status").textContent = t("status.videoConverting");
+      try {
+        const response = await fetch("/convert/mp4", {
+          method: "POST",
+          headers: { "Content-Type": format[0] },
+          body: blob,
+        });
+        if (response.ok) {
+          const converted = await response.blob();
+          if (converted.size) {
+            blob = converted;
+            extension = "mp4";
+          }
+        }
+      } catch {
+        // Keep the WebM recording when the optional local converter is unavailable.
+      }
+    }
+    stream.getTracks().forEach((track) => track.stop());
+    const name = ($("text").value.trim().replace(/[^\p{L}\p{N}]+/gu, "-") || "hello");
+    downloadBlob(blob, `${name}-${ratio.replace(":", "x")}.${extension}`);
+    if (extension === "webm") $("status").textContent = t("status.videoFallback");
+    else showStatus(state.shaped);
+  }
+
   // 调试 / 其他页面用
   window.mcintoshWriter = { animatedSvg, rebuild, play };
 
@@ -236,18 +489,22 @@
     clearTimeout(typing);
     typing = setTimeout(replay, 350);
   });
-  $("text").addEventListener("keydown", (e) => { if (e.key === "Enter") replay(); });
   $("play").addEventListener("click", replay);
   stage.addEventListener("click", (e) => { if (state) replay(); });
-  for (const id of ["weight", "theme", "ocross", "pjoin"]) {
-    $(id).addEventListener("input", () => {
+  for (const id of ["weight", "theme", "gradient-mode", "ocross", "pjoin", "center", "line-spacing"]) {
+    const refresh = () => {
       $("weightval").textContent = `${Number($("weight").value).toFixed(2)}×`;
+      $("line-spacing-val").textContent = `${Number($("line-spacing").value).toFixed(2)}×`;
       rebuild();
       if (state) setProgress(Infinity);
-    });
+    };
+    $(id).addEventListener("input", refresh);
+    if (["theme", "gradient-mode", "ocross", "pjoin"].includes(id)) $(id).addEventListener("change", refresh);
   }
   $("speed").addEventListener("input", () => { if (state) state.opts.speed = Number($("speed").value); });
   $("export").addEventListener("click", exportSvg);
+  $("static-export").addEventListener("click", exportStatic);
+  $("video-export").addEventListener("click", exportVideo);
   $("src").addEventListener("change", () => { sources.remember($("src").value); replay(); });
   $("file").addEventListener("change", async (e) => {
     try {
