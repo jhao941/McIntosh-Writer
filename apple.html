@@ -4,6 +4,16 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>McIntosh Writer – Glyph Inspector</title>
+<link rel="icon" type="image/png" sizes="64x64" href="icons/favicon.png">
+<script>
+  // 标签页图标跟随系统外观：深色时换成深色图标（各浏览器对 <link media> 的支持不一致，用脚本换最稳）
+  (() => {
+    const icon = document.querySelector('link[rel="icon"]'), dark = matchMedia("(prefers-color-scheme: dark)");
+    const update = () => { icon.href = dark.matches ? "icons/favicon-dark.png" : "icons/favicon.png"; };
+    update();
+    dark.addEventListener("change", update);
+  })();
+</script>
 <style>
   :root {
     --bg: #f5f5f7;
